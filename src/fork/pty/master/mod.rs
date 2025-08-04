@@ -70,6 +70,20 @@ impl Master {
             // of the call
             unsafe {
                 let data: *mut u8 = &mut buf[0];
+                #[cfg(target_os = "macos")]
+                {
+                    let pts_name = libc::ptsname(fd);
+                    if pts_name.is_null() {
+                        return Err(MasterError::PtsnameError);
+                    }
+                    let name_len = libc::strlen(pts_name);
+                    if name_len >= buf.len() {
+                        return Err(MasterError::PtsnameError);
+                    }
+                    libc::strncpy(data as *mut libc::c_char, pts_name, buf.len());
+                    Ok(())
+                }
+                #[cfg(not(target_os = "macos"))]
                 match libc::ptsname_r(fd, data as *mut libc::c_char, buf.len()) {
                     0 => Ok(()),
                     _ => Err(MasterError::PtsnameError), // should probably capture errno
